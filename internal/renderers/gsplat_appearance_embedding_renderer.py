@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import lightning
 import torch
 from torch import nn
-from gsplat.sh import spherical_harmonics
+from gsplat_light.sh import spherical_harmonics
 
 from . import RendererOutputInfo, RendererOutputTypes
 from .renderer import Renderer, RendererConfig
