@@ -10,7 +10,7 @@ from .dataparser import DataParserConfig, DataParser, ImageSet, Cameras, PointCl
 
 
 @dataclass
-class NS(DataParserConfig):
+class NGP(DataParserConfig):
     name: str = "transforms.json"
 
     pcd_from: Literal["auto", "random", "file"] = "auto"
@@ -20,10 +20,10 @@ class NS(DataParserConfig):
     num_random_points: int = 100_000
 
     def instantiate(self, path: str, output_path: str, global_rank: int) -> DataParser:
-        return NSDataParser(self, path)
+        return NGPDataParser(self, path)
 
 
-class NSDataParser(DataParser):
+class NGPDataParser(DataParser):
     def __init__(self, config, path):
         super().__init__()
 

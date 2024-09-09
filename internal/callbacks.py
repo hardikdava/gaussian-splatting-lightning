@@ -60,7 +60,7 @@ class ProgressBar(TQDMProgressBar):
         self.on_epoch_metrics = {}
         tqdm_visibility = os.getenv("TQDM_DISABLE", "true")
         tqdm_visibility = False if tqdm_visibility.lower() == "false" else True
-        if not tqdm_visibility:
+        if tqdm_visibility:
             self.disable()
 
     def get_metrics(self, trainer, model):
