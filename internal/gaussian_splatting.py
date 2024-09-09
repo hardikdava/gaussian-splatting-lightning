@@ -15,7 +15,6 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler, LRSchedulerP
 import lightning.pytorch.loggers
 
 import internal.mp_strategy
-from internal.viewer.training_viewer import TrainingViewer
 from internal.configs.light_gaussian import LightGaussian
 
 from internal.models.gaussian import Gaussian, GaussianModel
@@ -81,7 +80,7 @@ class GaussianSplatting(LightningModule):
         else:
             self.get_background_color = self._fixed_background_color
 
-        self.web_viewer: TrainingViewer = None
+        self.web_viewer = None
 
         self.batch_size = 1
         self.restored_epoch = 0
@@ -302,14 +301,6 @@ class GaussianSplatting(LightningModule):
                 c2w = self.trainer.datamodule.dataparser_outputs.train_set.cameras.world_to_camera[:, :3, :3]
                 up = c2w[:, :3, 1].mean(dim=0)
                 up = -up / torch.linalg.norm(up)
-            self.web_viewer = TrainingViewer(
-                camera_names=self.trainer.datamodule.dataparser_outputs.train_set.image_names,
-                cameras=self.trainer.datamodule.dataparser_outputs.train_set.cameras,
-                up_direction=up.cpu().numpy(),
-                camera_center=self.trainer.datamodule.dataparser_outputs.train_set.cameras.camera_center.mean(dim=0).cpu().numpy(),
-                available_appearance_options=self.trainer.datamodule.dataparser_outputs.appearance_group_ids,
-            )
-            self.web_viewer.start()
 
     def on_train_batch_start(self, batch: Any, batch_idx: int):
         if self.web_viewer is not None:
