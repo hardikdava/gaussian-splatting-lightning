@@ -41,7 +41,6 @@ class GSplatDistributedAppearanceEmbeddingRendererImpl(GSplatDistributedRenderer
         n_appearances = max_input_id + 1
         assert self.config.appearance.n_appearances >= n_appearances, "`n_appearances` must be >= {}".format(n_appearances)
 
-        print(self.appearance_model)
         self.appearance_model = DDP(self.appearance_model, device_ids=[module.device.index])
 
         embedding_optimizer, embedding_scheduler = GSplatAppearanceEmbeddingRenderer._create_optimizer_and_scheduler(
