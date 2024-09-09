@@ -2,7 +2,7 @@ from typing import Optional
 import torch
 from .renderer import Renderer
 from .gsplat_renderer import GSPlatRenderer
-from gsplat.hit_pixel_count import hit_pixel_count
+from gsplat_light.hit_pixel_count import hit_pixel_count
 
 
 class GSplatHitPixelCountRenderer(Renderer):
