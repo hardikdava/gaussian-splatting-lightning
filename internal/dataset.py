@@ -298,7 +298,10 @@ class DataModule(LightningDataModule):
 
     @staticmethod
     def detect_dataset_type(path):
-        if os.path.isdir(os.path.join(path, "sparse")) is True:
+        if os.path.exists(os.path.join(path,"ns", "transforms.json")):
+            from internal.dataparsers.ngp_dataparser import NGP
+            return NGP()
+        elif os.path.isdir(os.path.join(path, "sparse")) is True:
             from internal.dataparsers.colmap_dataparser import Colmap
             return Colmap()
         elif os.path.exists(os.path.join(path, "transforms_train.json")):
