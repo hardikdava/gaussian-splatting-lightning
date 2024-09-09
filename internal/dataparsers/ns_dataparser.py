@@ -10,20 +10,20 @@ from .dataparser import DataParserConfig, DataParser, ImageSet, Cameras, PointCl
 
 
 @dataclass
-class NGP(DataParserConfig):
+class NS(DataParserConfig):
     name: str = "transforms.json"
 
     pcd_from: Literal["auto", "random", "file"] = "auto"
 
-    pcd_file: str = "points3D.ply"
+    pcd_file: str = "sparse_pc.ply"
 
     num_random_points: int = 100_000
 
     def instantiate(self, path: str, output_path: str, global_rank: int) -> DataParser:
-        return NGPDataParser(self, path)
+        return NSDataParser(self, path)
 
 
-class NGPDataParser(DataParser):
+class NSDataParser(DataParser):
     def __init__(self, config, path):
         super().__init__()
 
@@ -31,7 +31,7 @@ class NGPDataParser(DataParser):
         self.path = path
 
     def get_outputs(self) -> DataParserOutputs:
-        with open(os.path.join(self.path, self.config.name), "r") as f:
+        with open(os.path.join(self.path, "ns", self.config.name), "r") as f:
             transforms = json.load(f)
 
         val_set_filename_list = transforms.get("val_filenames", [])
@@ -152,6 +152,8 @@ class NGPDataParser(DataParser):
 
         # point cloud
         pcd_file_path = os.path.join(self.path, self.config.pcd_file)
+        if "ply_file_path" in transforms:
+            pcd_file_path = os.path.join(self.path, transforms["ply_file_path"])
         is_pcd_file_exist = os.path.exists(pcd_file_path)
         if self.config.pcd_from == "file" and is_pcd_file_exist is False:
             raise ValueError(f"'{pcd_file_path}' not exists")
