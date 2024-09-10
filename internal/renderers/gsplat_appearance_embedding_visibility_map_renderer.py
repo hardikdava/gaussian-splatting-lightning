@@ -186,7 +186,6 @@ class GSplatAppearanceEmbeddingVisibilityMapRenderer(Renderer):
             self.model_config.n_images = n_appearances
 
         self.model = Model(self.model_config)
-        # print(self.model)
         self.renderer = GSPlatRenderer()
 
     def training_setup(self, module: lightning.LightningModule):

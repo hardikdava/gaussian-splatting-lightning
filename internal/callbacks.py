@@ -1,6 +1,7 @@
 import os
 import sys
 import math
+from loguru import logger
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.callbacks.progress.tqdm_progress import TQDMProgressBar, Tqdm
 
@@ -59,8 +60,8 @@ class ProgressBar(TQDMProgressBar):
         super().__init__(refresh_rate, process_position + 1)
         self.on_epoch_metrics = {}
         tqdm_visibility = os.getenv("TQDM_DISABLE", "true")
-        tqdm_visibility = False if tqdm_visibility.lower() == "false" else True
-        if tqdm_visibility:
+        self.tqdm_visibility = False if tqdm_visibility.lower() == "false" else True
+        if self.tqdm_visibility:
             self.disable()
 
     def get_metrics(self, trainer, model):
@@ -73,6 +74,9 @@ class ProgressBar(TQDMProgressBar):
         self.max_epochs = trainer.max_epochs
         if self.max_epochs < 0:
             self.max_epochs = math.ceil(trainer.max_steps / self.total_train_batches)
+
+        if trainer.current_epoch % 1000 == 0 and self.tqdm_visibility:
+            logger.debug("generation under process", extra=f"{trainer.current_epoch}")
 
         self.epoch_progress_bar = Tqdm(
             desc=self.train_description,
