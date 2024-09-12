@@ -7,7 +7,7 @@ include = ["internal*"]
 
 [project]
 name = "gaussian-splatting-lightning"
-dynamic = ["version"]
+version="1.0.0"
 requires-python = ">=3.8"
 dependencies = [
     "lightning[pytorch-extra]==2.0.9.post0",
