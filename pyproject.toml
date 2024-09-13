@@ -25,6 +25,16 @@ dependencies = [
     "simple-knn @ git+https://gitlab.inria.fr/bkerbl/simple-knn.git@44f764299fa305faf6ec5ebd99939e0508331503",
 ]
 
+gsplat = [
+    "gsplat @ git+pip install git+https://github.com/yzslab/gsplat.git"
+]
+
+SegAny = [
+    "hdbscan",
+    "scikit-learn==1.3.2",
+    "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git"
+]
+
 [project.scripts]
 gs-fit = "internal.entrypoints.gspl:cli_fit"
 gs-val = "internal.entrypoints.gspl:cli_val"
