@@ -281,6 +281,8 @@ class ColmapDataParser(DataParser):
         for idx, key in enumerate(images):
             # extract image and its correspond camera
             extrinsics = images[key]
+            if not os.path.exists(os.path.join(image_dir, extrinsics.name)):
+                continue
             intrinsics = cameras[extrinsics.camera_id]
 
             height = intrinsics.height
