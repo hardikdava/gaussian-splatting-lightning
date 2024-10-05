@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 import os
 import json
 
@@ -18,6 +18,8 @@ class NGP(DataParserConfig):
     pcd_file: str = "sparse_pc.ply"
 
     num_random_points: int = 100_000
+
+    appearance_groups: Optional[str] = None
 
     def instantiate(self, path: str, output_path: str, global_rank: int) -> DataParser:
         return NGPDataParser(self, path)
