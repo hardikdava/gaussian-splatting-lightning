@@ -19,7 +19,7 @@ from internal.configs.light_gaussian import LightGaussian
 
 from internal.models.gaussian import Gaussian, GaussianModel
 from internal.models.vanilla_gaussian import VanillaGaussian
-from internal.renderers import Renderer, VanillaRenderer, RendererConfig
+from internal.renderers import Renderer, RendererConfig, GSPlatRenderer
 from internal.metrics.metric import Metric
 from internal.metrics.vanilla_metrics import VanillaMetrics
 from internal.density_controllers.density_controller import DensityController
@@ -42,7 +42,7 @@ class GaussianSplatting(LightningModule):
             save_val_output: bool = False,
             save_val_metrics: bool = None,
             max_save_val_output: int = -1,
-            renderer: Union[Renderer, RendererConfig] = lazy_instance(VanillaRenderer),
+            renderer: Union[Renderer, RendererConfig] = lazy_instance(GSPlatRenderer),
             metric: Metric = lazy_instance(VanillaMetrics),
             density: DensityController = lazy_instance(VanillaDensityController),
             save_ply: bool = False,
