@@ -14,6 +14,9 @@ from ..models.gaussian import GaussianModel
 from internal.encodings.positional_encoding import PositionalEncoding
 
 
+from gsplat.rendering import rasterization
+
+
 @dataclass
 class ModelConfig:
     n_gaussian_feature_dims: int = 64
@@ -157,79 +160,6 @@ class GSplatAppearanceEmbeddingRendererModule(Renderer):
 
         return [embedding_optimizer, network_optimizer], [embedding_scheduler, network_scheduler]
 
-    def forward(self, viewpoint_camera: Camera, pc: GaussianModel, bg_color: torch.Tensor, scaling_modifier=1.0, render_types=None, **kwargs):
-        if render_types is None:
-            render_types = ["rgb"]
-
-        projection_results = GSPlatRenderer.project(
-            means3D=pc.get_xyz,
-            scales=pc.get_scaling,
-            rotations=pc.get_rotation,
-            viewpoint_camera=viewpoint_camera,
-            scaling_modifier=scaling_modifier,
-        )
-
-        xys, depths, radii, conics, comp, num_tiles_hit, cov3d = projection_results
-        is_gaussian_visible = radii > 0
-
-        opacities = pc.get_opacities()
-        if self.anti_aliased:
-            opacities = opacities * comp[:, None]
-
-        rgb = None
-        if "rgb" in render_types:
-            radii = projection_results[2]
-
-            detached_xyz = pc.get_xyz.detach()
-            view_directions = detached_xyz[is_gaussian_visible] - viewpoint_camera.camera_center  # (N, 3)
-            view_directions = view_directions / view_directions.norm(dim=-1, keepdim=True)
-            base_rgb = spherical_harmonics(pc.active_sh_degree, view_directions, pc.get_features[is_gaussian_visible]) + 0.5
-            rgb_offset = self.model(pc.get_appearance_features()[is_gaussian_visible], viewpoint_camera.appearance_id, view_directions) * 2 - 1.
-            rgbs = torch.zeros((radii.shape[0], 3), dtype=projection_results[0].dtype, device=radii.device)
-            rgbs[is_gaussian_visible] = torch.clamp(base_rgb + rgb_offset, min=0., max=1.)
-
-            rgb = self.renderer.rasterize_simplified(
-                project_results=projection_results,
-                viewpoint_camera=viewpoint_camera,
-                colors=rgbs,
-                bg_color=bg_color,
-                opacities=opacities,
-                anti_aliased=False,  # already applied AA above
-            )
-
-        inverse_depth_im = None
-        if "inverse_depth" in render_types:
-            inverse_depth = 1. / (depths.clamp_min(0.) + 1e-8).unsqueeze(-1)
-            inverse_depth_im = self.renderer.rasterize_simplified(
-                project_results=projection_results,
-                viewpoint_camera=viewpoint_camera,
-                colors=inverse_depth,
-                bg_color=torch.zeros((1,), dtype=torch.float, device=bg_color.device),
-                opacities=opacities,
-                anti_aliased=False,  # already applied AA above
-            )
-
-        hard_inverse_depth_im = None
-        if "hard_inverse_depth" in render_types:
-            inverse_depth = 1. / (depths.clamp_min(0.) + 1e-8).unsqueeze(-1)
-            hard_inverse_depth_im = self.renderer.rasterize_simplified(
-                project_results=projection_results,
-                viewpoint_camera=viewpoint_camera,
-                colors=inverse_depth,
-                bg_color=torch.zeros((1,), dtype=torch.float, device=bg_color.device),
-                opacities=opacities + (1 - opacities.detach()),
-                anti_aliased=False,  # already applied AA above
-            )
-
-        return {
-            "render": rgb,
-            "inverse_depth": inverse_depth_im,
-            "hard_inverse_depth": hard_inverse_depth_im,
-            "viewspace_points": xys,
-            "viewspace_points_grad_scale": 0.5 * torch.tensor([[viewpoint_camera.width, viewpoint_camera.height]]).to(xys),
-            "visibility_filter": is_gaussian_visible,
-            "radii": radii,
-        }
 
     def training_forward(self, step: int, module: lightning.LightningModule, viewpoint_camera: Camera, pc: GaussianModel, bg_color: torch.Tensor, scaling_modifier=1.0, **kwargs):
         if step < self.optimization_config.warm_up:

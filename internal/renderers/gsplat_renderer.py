@@ -4,6 +4,8 @@ from gsplat_light.rasterize import rasterize_gaussians
 from gsplat_light.sh import spherical_harmonics
 from .renderer import *
 
+from gsplat.rendering import rasterization
+
 DEFAULT_BLOCK_SIZE: int = 16
 DEFAULT_ANTI_ALIASED_STATUS: bool = True
 
@@ -50,133 +52,106 @@ class GSPlatRenderer(Renderer):
         return bits & type != 0
 
     def forward(self, viewpoint_camera: Camera, pc: GaussianModel, bg_color: torch.Tensor, scaling_modifier=1.0, render_types: list = None, **kwargs):
-        render_type_bits = self.parse_render_types(render_types)
+
 
         img_height = int(viewpoint_camera.height.item())
         img_width = int(viewpoint_camera.width.item())
 
-        xys, depths, radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
-            means3d=pc.get_xyz,
+        K = torch.tensor([[viewpoint_camera.fx.item(), 0, viewpoint_camera.cx.item()],
+                          [0, viewpoint_camera.fy.item(), viewpoint_camera.cy.item()],
+                            [0, 0, 1]]).unsqueeze(0).to(viewpoint_camera.R.device)
+
+        opacities = pc.get_opacity.squeeze(-1)
+        colors = pc.get_features
+
+        viewmats = viewpoint_camera.world_to_camera.T  # [1, 4, 4]
+        viewmats = viewmats.unsqueeze(0)
+
+        render, alpha, info = rasterization(
+            means=pc.get_xyz,
+            quats=pc.get_rotation / pc.get_rotation.norm(dim=-1, keepdim=True),  # rasterization does normalization internally
             scales=pc.get_scaling,
-            glob_scale=scaling_modifier,
-            quats=pc.get_rotation / pc.get_rotation.norm(dim=-1, keepdim=True),
-            viewmat=viewpoint_camera.world_to_camera.T[:3, :],
-            # projmat=viewpoint_camera.full_projection.T,
-            fx=viewpoint_camera.fx.item(),
-            fy=viewpoint_camera.fy.item(),
-            cx=viewpoint_camera.cx.item(),
-            cy=viewpoint_camera.cy.item(),
-            img_height=img_height,
-            img_width=img_width,
-            block_width=self.block_size,
+            opacities=opacities,
+            colors=colors,
+            viewmats=viewmats,  # [1, 4, 4]
+            Ks=K,  # [1, 3, 3]
+            width=img_width,
+            height=img_height,
+            packed=False,
+            near_plane=0.01,
+            far_plane=1e10,
+            render_mode="RGB",
+            sh_degree=pc.active_sh_degree,
+            sparse_grad=False,
+            absgrad=False,
+            rasterize_mode="antialiased",
+            # set some threshold to disregrad small gaussians for faster rendering.
+            # radius_clip=3.0,
         )
 
-        opacities = pc.get_opacity
-        if self.anti_aliased is True:
-            opacities = opacities * comp[:, None]
+        print(info.keys())
 
-        def rasterize(input_features: torch.Tensor, background, return_alpha: bool = False):
-            return rasterize_gaussians(  # type: ignore
-                xys,
-                depths,
-                radii,
-                conics,
-                num_tiles_hit,  # type: ignore
-                input_features,
-                opacities,
-                img_height=img_height,
-                img_width=img_width,
-                block_width=self.block_size,
-                background=background,
-                return_alpha=return_alpha,
-            )
+        alpha = alpha[:, ...]
+        rgb = render[:, ..., :3] + (1 - alpha) * bg_color
+        rgb = torch.clamp(rgb, 0.0, 1.0)
+        rgb = rgb.squeeze(0)
+        rgb = rgb.permute(2, 0, 1)
+        alpha = alpha.squeeze(0)
 
-        # rgb
-        rgb = None
-        if self.is_type_required(render_type_bits, self._RGB_REQUIRED):
-            viewdirs = pc.get_xyz.detach() - viewpoint_camera.camera_center  # (N, 3)
-            rgbs = spherical_harmonics(pc.active_sh_degree, viewdirs, pc.get_features)
-            rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
+        # xys, depths, radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
+        #     means3d=pc.get_xyz,
+        #     scales=pc.get_scaling,
+        #     glob_scale=scaling_modifier,
+        #     quats=pc.get_rotation / pc.get_rotation.norm(dim=-1, keepdim=True),
+        #     viewmat=viewpoint_camera.world_to_camera.T[:3, :],
+        #     # projmat=viewpoint_camera.full_projection.T,
+        #     fx=viewpoint_camera.fx.item(),
+        #     fy=viewpoint_camera.fy.item(),
+        #     cx=viewpoint_camera.cx.item(),
+        #     cy=viewpoint_camera.cy.item(),
+        #     img_height=img_height,
+        #     img_width=img_width,
+        #     block_width=self.block_size,
+        # )
+        #
+        #
+        #
+        # def rasterize(input_features: torch.Tensor, background, return_alpha: bool = False):
+        #     return rasterize_gaussians(  # type: ignore
+        #         xys,
+        #         depths,
+        #         radii,
+        #         conics,
+        #         num_tiles_hit,  # type: ignore
+        #         input_features,
+        #         opacities,
+        #         img_height=img_height,
+        #         img_width=img_width,
+        #         block_width=self.block_size,
+        #         background=background,
+        #         return_alpha=return_alpha,
+        #     )
+        #
+        # # rgb
+        # rgb = None
+        # if self.is_type_required(render_type_bits, self._RGB_REQUIRED):
+        #
+        #
+        #     rgb = rasterize(rgbs, bg_color).permute(2, 0, 1)
 
-            rgb = rasterize(rgbs, bg_color).permute(2, 0, 1)
-
-        alpha = None
         acc_depth_im = None
         acc_depth_inverted_im = None
         exp_depth_im = None
         exp_depth_inverted_im = None
-        if self.is_type_required(render_type_bits, self._ACC_DEPTH_REQUIRED):
-            # acc depth
-            acc_depth_im, alpha = rasterize(depths.unsqueeze(-1), torch.zeros((1,), device=bg_color.device), True)
-            alpha = alpha[..., None]
-
-            # acc depth inverted
-            if self.is_type_required(render_type_bits, self._ACC_DEPTH_INVERTED_REQUIRED):
-                acc_depth_inverted_im = torch.where(acc_depth_im > 0, 1. / acc_depth_im, acc_depth_im.detach().max())
-                acc_depth_inverted_im = acc_depth_inverted_im.permute(2, 0, 1)
-
-            # exp depth
-            if self.is_type_required(render_type_bits, self._EXP_DEPTH_REQUIRED):
-                exp_depth_im = torch.where(alpha > 0, acc_depth_im / alpha, acc_depth_im.detach().max())
-
-                exp_depth_im = exp_depth_im.permute(2, 0, 1)
-
-            # alpha
-            if self.is_type_required(render_type_bits, self._ALPHA_REQUIRED):
-                alpha = alpha.permute(2, 0, 1)
-            else:
-                alpha = None
-
-            # permute acc depth
-            acc_depth_im = acc_depth_im.permute(2, 0, 1)
-
-            # exp depth inverted
-            if self.is_type_required(render_type_bits, self._EXP_DEPTH_INVERTED_REQUIRED):
-                exp_depth_inverted_im = torch.where(exp_depth_im > 0, 1. / exp_depth_im, exp_depth_im.detach().max())
-
-        # inverse depth
         inverse_depth_im = None
-        if self.is_type_required(render_type_bits, self._INVERSE_DEPTH_REQUIRED):
-            inverse_depth = 1. / (depths.clamp_min(0.) + 1e-8).unsqueeze(-1)
-            inverse_depth_im = rasterize(inverse_depth, torch.zeros((1,), dtype=torch.float, device=bg_color.device)).permute(2, 0, 1)
-
-        # hard depth
         hard_depth_im = None
-        if self.is_type_required(render_type_bits, self._HARD_DEPTH_REQUIRED):
-            hard_depth_im = rasterize_gaussians(
-                xys,
-                depths,
-                radii,
-                conics,
-                num_tiles_hit,
-                depths.unsqueeze(-1),
-                opacities + (1 - opacities.detach()),
-                img_height=img_height,
-                img_width=img_width,
-                block_width=self.block_size,
-                background=torch.zeros((1,), dtype=torch.float, device=bg_color.device),
-                return_alpha=False,
-            ).permute(2, 0, 1)
-
-        # hard inverse depth
         hard_inverse_depth_im = None
-        if self.is_type_required(render_type_bits, self._HARD_INVERSE_DEPTH_REQUIRED):
-            inverse_depth = 1. / (depths.clamp_min(0.) + 1e-8).unsqueeze(-1)
-            hard_inverse_depth_im = rasterize_gaussians(
-                xys,
-                depths,
-                radii,
-                conics,
-                num_tiles_hit,
-                inverse_depth,
-                opacities + (1 - opacities.detach()),  # aiming to reduce the opacities of artifacts
-                img_height=img_height,
-                img_width=img_width,
-                block_width=self.block_size,
-                background=torch.zeros((1,), dtype=torch.float, device=bg_color.device),
-                return_alpha=False,
-            ).permute(2, 0, 1)
+        # dict_keys(['camera_ids', 'gaussian_ids', 'radii', 'means2d', 'depths', 'conics', 'opacities', 'tile_width',
+        #            'tile_height', 'tiles_per_gauss', 'isect_ids', 'flatten_ids', 'isect_offsets', 'width', 'height',
+        #            'tile_size', 'n_cameras'])
 
+        radii = info["radii"].squeeze(0)
+        xys = info["means2d"].squeeze(0)
         return {
             "render": rgb,
             "alpha": alpha,
