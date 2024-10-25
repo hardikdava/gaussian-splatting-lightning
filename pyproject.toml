@@ -18,7 +18,6 @@ dependencies = [
     "tensorboard",
     "wandb",
     "tqdm",
-    "viser==0.1.27",
     "opencv-python==4.8.0.76",
     "matplotlib",
     "mediapy==1.2.2",
