@@ -99,6 +99,7 @@ class VanillaDensityControllerImpl(DensityControllerImpl):
             radii[visibility_filter]
         )
         xys_grad = viewspace_point_tensor.grad
+
         if self.config.absgrad is True:
             xys_grad = viewspace_point_tensor.absgrad
         self._add_densification_stats(xys_grad, visibility_filter, scale=viewspace_points_grad_scale)
