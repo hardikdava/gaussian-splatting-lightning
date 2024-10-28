@@ -1,4 +1,4 @@
-max_steps: 1000
+max_steps: 2000
 model:
   gaussian:
     class_path: internal.models.appearance_feature_gaussian.AppearanceFeatureGaussian
