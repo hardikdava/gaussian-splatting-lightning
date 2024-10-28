@@ -105,6 +105,8 @@ class VanillaDensityControllerImpl(DensityControllerImpl):
         self._add_densification_stats(xys_grad, visibility_filter, scale=viewspace_points_grad_scale)
 
     def _add_densification_stats(self, grad, update_filter, scale: Union[float, int, None]):
+        if len(grad.shape) == 3:
+            grad = grad[0]
         scaled_grad = grad[update_filter, :2]
         if scale is not None:
             scaled_grad = scaled_grad * scale
