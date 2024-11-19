@@ -4,6 +4,7 @@ from .dataparser import DataParserConfig, DataParser, ImageSet, DataParserOutput
 from .colmap_dataparser import Colmap
 from .blender_dataparser import Blender
 from .nsvf_dataparser import NSVF
+from .ngp_dataparser import NGP
 from .nerfies_dataparser import Nerfies
 from .matrix_city_dataparser import MatrixCity
 from .phototourism_dataparser import PhotoTourism
