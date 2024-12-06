@@ -83,8 +83,6 @@ class MipSplattingGSplatRenderer(Renderer):
 
     @torch.no_grad()
     def compute_3d_filter(self, cameras, gaussian_model):
-        print("Computing 3D filter")
-
         # cameras = [i for i in cameras]
         # random.shuffle(cameras)
 

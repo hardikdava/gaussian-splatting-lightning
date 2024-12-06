@@ -283,11 +283,6 @@ class VanillaGaussianModel(
         constant_lr_optimizer = optimizer_factory.instantiate(l, lr=0.0, eps=1e-15)
         self._add_optimizer_after_backward_hook_if_available(constant_lr_optimizer, module)
 
-        print("spatial_lr_scale={}, learning_rates=".format(spatial_lr_scale))
-        print("  means={}->{}".format(means_lr_init, optimization_config.means_lr_scheduler.lr_final))
-        for i in l:
-            print("  {}={}".format(i["name"], i["lr"]))
-
         return [means_optimizer, constant_lr_optimizer], [means_scheduler]
 
     def get_property_names(self) -> Tuple[str, ...]:

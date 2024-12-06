@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import lightning
 import torch
 from torch import nn
-from gsplat.sh import spherical_harmonics
+from gsplat_light.sh import spherical_harmonics
 
 from . import RendererOutputInfo, RendererOutputTypes
 from .renderer import Renderer, RendererConfig
@@ -130,7 +130,6 @@ class GSplatAppearanceEmbeddingRendererModule(Renderer):
                 self.model_config.n_appearances = n_appearances
 
             self._setup_model()
-            print(self.model)
 
     def _setup_model(self, device=None):
         self.model = Model(self.model_config)

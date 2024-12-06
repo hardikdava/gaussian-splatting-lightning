@@ -1,7 +1,7 @@
 import torch
-from gsplat import project_gaussians
-from gsplat.rasterize import rasterize_gaussians
-from gsplat.sh import spherical_harmonics
+from gsplat_light import project_gaussians
+from gsplat_light.rasterize import rasterize_gaussians
+from gsplat_light.sh import spherical_harmonics
 from .renderer import *
 
 DEFAULT_BLOCK_SIZE: int = 16

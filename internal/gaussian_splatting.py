@@ -15,12 +15,11 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler, LRSchedulerP
 import lightning.pytorch.loggers
 
 import internal.mp_strategy
-from internal.viewer.training_viewer import TrainingViewer
 from internal.configs.light_gaussian import LightGaussian
 
 from internal.models.gaussian import Gaussian, GaussianModel
 from internal.models.vanilla_gaussian import VanillaGaussian
-from internal.renderers import Renderer, VanillaRenderer, RendererConfig
+from internal.renderers import Renderer, RendererConfig, GSPlatRenderer
 from internal.metrics.metric import Metric
 from internal.metrics.vanilla_metrics import VanillaMetrics
 from internal.density_controllers.density_controller import DensityController
@@ -43,7 +42,7 @@ class GaussianSplatting(LightningModule):
             save_val_output: bool = False,
             save_val_metrics: bool = None,
             max_save_val_output: int = -1,
-            renderer: Union[Renderer, RendererConfig] = lazy_instance(VanillaRenderer),
+            renderer: Union[Renderer, RendererConfig] = lazy_instance(GSPlatRenderer),
             metric: Metric = lazy_instance(VanillaMetrics),
             density: DensityController = lazy_instance(VanillaDensityController),
             save_ply: bool = False,
@@ -81,7 +80,7 @@ class GaussianSplatting(LightningModule):
         else:
             self.get_background_color = self._fixed_background_color
 
-        self.web_viewer: TrainingViewer = None
+        self.web_viewer = None
 
         self.batch_size = 1
         self.restored_epoch = 0
@@ -302,14 +301,6 @@ class GaussianSplatting(LightningModule):
                 c2w = self.trainer.datamodule.dataparser_outputs.train_set.cameras.world_to_camera[:, :3, :3]
                 up = c2w[:, :3, 1].mean(dim=0)
                 up = -up / torch.linalg.norm(up)
-            self.web_viewer = TrainingViewer(
-                camera_names=self.trainer.datamodule.dataparser_outputs.train_set.image_names,
-                cameras=self.trainer.datamodule.dataparser_outputs.train_set.cameras,
-                up_direction=up.cpu().numpy(),
-                camera_center=self.trainer.datamodule.dataparser_outputs.train_set.cameras.camera_center.mean(dim=0).cpu().numpy(),
-                available_appearance_options=self.trainer.datamodule.dataparser_outputs.appearance_group_ids,
-            )
-            self.web_viewer.start()
 
     def on_train_batch_start(self, batch: Any, batch_idx: int):
         if self.web_viewer is not None:

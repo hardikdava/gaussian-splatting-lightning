@@ -83,7 +83,6 @@ class CLI(LightningCLI):
         if config.version is not None:
             output_path = os.path.join(output_path, config.version)
         os.makedirs(output_path, exist_ok=True)
-        print("output path: {}".format(output_path))
         config.model.output_path = output_path
 
         # search checkpoint
